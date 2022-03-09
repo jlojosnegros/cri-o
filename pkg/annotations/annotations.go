@@ -38,6 +38,9 @@ const (
 	// TrySkipVolumeSELinuxLabelAnnotation is the annotation used for optionally skipping relabeling a volume
 	// with the specified SELinux label.  The relabeling will be skipped if the top layer is already labeled correctly.
 	TrySkipVolumeSELinuxLabelAnnotation = "io.kubernetes.cri-o.TrySkipVolumeSELinuxLabel"
+
+	// Number of secondary threads to keep enabled for housekeeping tasks
+	NumSiblingCoresEnabled = "max-ht-enabled-cores.crio.io"
 )
 
 var AllAllowedAnnotations = []string{
@@ -52,4 +55,5 @@ var AllAllowedAnnotations = []string{
 	OCISeccompBPFHookAnnotation,
 	rdt.RdtContainerAnnotation,
 	TrySkipVolumeSELinuxLabelAnnotation,
+	NumSiblingCoresEnabled,
 }
