@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jaypipes/ghw"
+	ghwcpu "github.com/jaypipes/ghw/pkg/cpu"
+
 	"github.com/cri-o/cri-o/internal/config/cgmgr"
 	"github.com/cri-o/cri-o/internal/lib/sandbox"
 	"github.com/cri-o/cri-o/internal/log"
@@ -40,6 +43,16 @@ const (
 	cgroupMountPoint     = "/sys/fs/cgroup"
 	irqBalanceBannedCpus = "IRQBALANCE_BANNED_CPUS"
 	irqBalancedName      = "irqbalance"
+	systemCPUDir         = "/sys/devices/system/cpu"
+)
+
+// cpuOnlineStatus refer to the values to write to `online` file to change CPU status
+type cpuOnlineStatus string
+
+// Constants for valid cpuOnlineStasu:
+const (
+	ONLINE  cpuOnlineStatus = "1"
+	OFFLINE cpuOnlineStatus = "0"
 )
 
 // HighPerformanceHooks used to run additional hooks that will configure a system for the latency sensitive workloads
@@ -91,6 +104,14 @@ func (h *HighPerformanceHooks) PreStart(ctx context.Context, c *oci.Container, s
 		}
 	}
 
+	if coresToKeep, ok := shouldHyperThreadingSiblingCoresBeDisabled(s.Annotations()); ok {
+		log.Infof(ctx, "Disable HT cores for container %q keeping %d online for housekeeping", c.ID(), coresToKeep)
+		err := setHTSiblingsOffline(c, systemCPUDir, coresToKeep)
+		if err != nil {
+			return errors.Wrap(err, "disable HT siblings")
+		}
+	}
+
 	return nil
 }
 
@@ -126,7 +147,31 @@ func (h *HighPerformanceHooks) PreStop(ctx context.Context, c *oci.Container, s 
 
 	// no need to reverse the cgroup CPU CFS quota setting as the pod cgroup will be deleted anyway
 
+	if _, ok := shouldHyperThreadingSiblingCoresBeDisabled(s.Annotations()); ok {
+		log.Infof(ctx, "Enable HT cores for container %q", c.ID())
+		err := setAllHTSiblingsOnline(c, systemCPUDir)
+		if err != nil {
+			return errors.Wrap(err, "enable HT siblings")
+		}
+	}
 	return nil
+}
+
+// Returns true if the container has  the annotation `crioannotations.NumSiblingCoresEnabled`.
+// That means logical processors sibilngs to those assigned to the container
+// could be set offline while the container is running
+func shouldHyperThreadingSiblingCoresBeDisabled(annotations fields.Set) (uint, bool) {
+	coresNumberStr, ok := annotations[crioannotations.NumSiblingCoresEnabled]
+	if !ok {
+		return 0, false
+	}
+
+	coresNumber, err := strconv.ParseUint(coresNumberStr, 10, 0)
+	if err != nil {
+		log.Warnf(context.TODO(), "Unable to get number of cores from %q: %v", coresNumberStr, err)
+		return 0, false
+	}
+	return uint(coresNumber), true
 }
 
 func shouldCPULoadBalancingBeDisabled(annotations fields.Set) bool {
@@ -170,6 +215,161 @@ func isCgroupParentBestEffort(s *sandbox.Sandbox) bool {
 
 func isContainerRequestWholeCPU(c *oci.Container) bool {
 	return *(c.Spec().Linux.Resources.CPU.Shares)%1024 == 0
+}
+
+// Look for all the cpu thread siblings of those assinged to Container
+// and disable (set offline) as much of them as possible ensuring:
+// - At least the number of `coresToKeep` are left online.
+// - Never disable all the siblings of the same core.
+//
+// warn: if a container has assigned two cpus that are siblings it could end
+//      running with less cpus than requested.
+func setHTSiblingsOffline(c *oci.Container, systemCPUDIR string, coresToKeep uint) error {
+	cpus, err := getContainerCPUList(c)
+	if err != nil {
+		return err
+	}
+
+	containerLogicalProcessors, err := cpuset.Parse(cpus)
+	if err != nil {
+		return err
+	}
+
+	if coresToKeep >= uint(containerLogicalProcessors.Size()) {
+		return nil
+	}
+
+	nodeCPUInfo, err := ghw.CPU()
+	if err != nil {
+		return err
+	}
+
+	toDisable := make(map[int]struct{})
+	for _, containerLogicalProcessorID := range containerLogicalProcessors.ToSlice() {
+		if containerLogicalProcessorID == 0 {
+			// on some architectures diabling CPU0 could end in a system brick
+			// so avoid it.
+			continue
+		}
+		// If the cpuID is already in the set of cpus to be disabled
+		// we do NOT keep looking for siblings to disable.
+		// This handles the case when a container has two sibling cpus assigned
+		// so we do not disable both of them
+		if _, ok := toDisable[containerLogicalProcessorID]; ok {
+			continue
+		}
+		toadd := findLogicalProcessorSiblings(nodeCPUInfo, containerLogicalProcessorID)
+		for x := range toadd {
+			toDisable[x] = struct{}{}
+		}
+	}
+
+	td := make([]int, 0, len(toDisable))
+	for x := range toDisable {
+		td = append(td, x)
+	}
+
+	numberOfLogicalProcessorsToDisable := uint(containerLogicalProcessors.Size()) - coresToKeep
+	for idx := 0; idx < len(td) && idx < int(numberOfLogicalProcessorsToDisable); idx++ {
+		if err := changeLogicalProcessorOnlineStatus(systemCPUDIR, OFFLINE, td[idx]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Look for all the cpu thread siblings of those assinged to Container
+// and enable (set online) all of them.
+//
+// This function restablish those cpus disabled by `setHTSiblingsOffline`
+func setAllHTSiblingsOnline(c *oci.Container, systemCPUDIR string) error {
+	cpus, err := getContainerCPUList(c)
+	if err != nil {
+		return err
+	}
+
+	containerLogicalProcessors, err := cpuset.Parse(cpus)
+	if err != nil {
+		return err
+	}
+
+	nodeCPUInfo, err := ghw.CPU()
+	if err != nil {
+		return err
+	}
+
+	toEnable := cpuset.NewBuilder()
+	for _, containerLogicalProcessorID := range containerLogicalProcessors.ToSlice() {
+		toEnable.Add(findLogicalProcessorSiblings(nodeCPUInfo, containerLogicalProcessorID)...)
+	}
+
+	for _, logicalProcessorID := range toEnable.Result().ToSlice() {
+		if err := changeLogicalProcessorOnlineStatus(systemCPUDIR, ONLINE, logicalProcessorID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Change the online/offline status of a CPU identified by `id` writing to
+// `<systemCPUDir>/cpu<id>/online system file.
+func changeLogicalProcessorOnlineStatus(systemCPUDir string, value cpuOnlineStatus, id int) error {
+	onlineFileName := filepath.Join(systemCPUDir, fmt.Sprintf("cpu%d", id), "online")
+
+	// jlom: Not sure all this is needed
+	fileInfo, err := os.Stat(onlineFileName)
+	if err != nil {
+		return err
+	}
+
+	if !fileInfo.Mode().IsRegular() {
+		return fmt.Errorf("non-regular file")
+	}
+
+	err = ioutil.WriteFile(onlineFileName, []byte(value), fileInfo.Mode().Perm())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Find all the logical processors siblings with the one identified by `logicalProcessorID`.
+//
+// note: siblings in this context means all non harware CPUS in the same core that share L1 cache
+func findLogicalProcessorSiblings(cpuInfo *ghwcpu.Info, logicalProcessorID int) []int {
+	for _, processor := range cpuInfo.Processors {
+		for _, core := range processor.Cores {
+			found := -1
+
+			for idx, id := range core.LogicalProcessors {
+				if id == logicalProcessorID {
+					found = idx
+					break
+				}
+			}
+			if found >= 0 {
+				var ret []int
+				ret = append(ret, core.LogicalProcessors[:found]...)
+				return append(ret, core.LogicalProcessors[found+1:]...)
+			}
+		}
+	}
+	return []int{}
+}
+
+func getContainerCPUList(c *oci.Container) (string, error) {
+	lspec := c.Spec().Linux
+	if lspec == nil ||
+		lspec.Resources == nil ||
+		lspec.Resources.CPU == nil ||
+		lspec.Resources.CPU.Cpus == "" {
+		return "", errors.Errorf("find container %s CPUs", c.ID())
+	}
+
+	return lspec.Resources.CPU.Cpus, nil
 }
 
 func setCPUSLoadBalancing(c *oci.Container, enable bool, schedDomainDir string) error {
