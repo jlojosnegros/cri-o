@@ -65,9 +65,10 @@ func (h *HighPerformanceHooks) PreStart(ctx context.Context, c *oci.Container, s
 		return nil
 	}
 
-	// disable the CPU load balancing for the container CPUs
+	// disable the CPU load balancing for the container CPUs 
 	if shouldCPULoadBalancingBeDisabled(s.Annotations()) {
-		if err := setCPUSLoadBalancingWithRetry(ctx, c, false); err != nil {
+		var err error
+		if err = setCPUSLoadBalancingWithRetry(ctx, c, false); err != nil {
 			return fmt.Errorf("set CPU load balancing: %w", err)
 		}
 	}
