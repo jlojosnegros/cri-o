@@ -198,5 +198,5 @@ function teardown() {
 	local banned_cpus
 	banned_cpus=$(sed -n 's/^IRQBALANCE_BANNED_CPUS=\"\?\([^\"]*\)\"\?/\1/p' "$IRQBALANCE_CONF")
 
-	[ "$banned_cpus_for_restore" == "$banned_cpus" ]
+	[ "$banned_cpus_for_restore" == "$banned_cpus" ] && [ ! -f "$BANNEDCPUS_CONF" ]
 }
