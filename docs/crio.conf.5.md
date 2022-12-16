@@ -2,10 +2,24 @@
 % Aleksa Sarai
 % OCTOBER 2016
 
+# diagram
+
+```mermaid
+graph LR;
+    Charles((charles))
+    Alice --> Bob
+    Alice --- Bob
+    subgraph one
+        Alice ---|Create|Charles
+    end
+```
+
 # NAME
+
 crio.conf - configuration file of the CRI-O OCI Kubernetes Container Runtime daemon
 
 # DESCRIPTION
+
 The CRI-O configuration file specifies all of the available configuration options and command-line flags for the [crio(8) OCI Kubernetes Container Runtime daemon][crio], but in a TOML format that can be more easily modified and versioned.
 
 CRI-O supports partial configuration reload during runtime, which can be done by sending SIGHUP to the running process. Currently supported options in `crio.conf` are explicitly marked with 'This option supports live configuration reload'.
@@ -15,6 +29,7 @@ The containers-registries.conf(5) file can be reloaded as well by sending SIGHUP
 The default crio.conf is located at /etc/crio/crio.conf.
 
 # FORMAT
+
 The [TOML format][toml] is used as the encoding of the configuration file. Every option and subtable listed here is nested under a global "crio" table. No bare options are used. The format of TOML can be simplified to:
 
     [table]
@@ -27,6 +42,7 @@ The [TOML format][toml] is used as the encoding of the configuration file. Every
     option = value
 
 ## CRIO TABLE
+
 CRI-O reads its storage defaults from the containers-storage.conf(5) file located at /etc/containers/storage.conf. Modify this storage configuration if you want to change the system's defaults. If you want to modify storage just for CRI-O, you can change the storage configuration options here.
 
 **root**="/var/lib/containers/storage"
@@ -65,6 +81,7 @@ CRI-O reads its storage defaults from the containers-storage.conf(5) file locate
   If not found, crio wipe will clear the storage directory.
 
 ## CRIO.API TABLE
+
 The `crio.api` table contains settings for the kubelet/gRPC interface.
 
 **listen**="/var/run/crio/crio.sock"
@@ -92,12 +109,13 @@ The `crio.api` table contains settings for the kubelet/gRPC interface.
   Path to the x509 CA(s) file used to verify and authenticate client communication with the encrypted stream. This file can change and CRI-O will automatically pick up the changes within 5 minutes.
 
 **grpc_max_send_msg_size**=83886080
-  Maximum grpc send message size in bytes. If not set or <=0, then CRI-O will default to 80 * 1024 * 1024.
+  Maximum grpc send message size in bytes. If not set or <=0, then CRI-O will default to 80 *1024* 1024.
 
 **grpc_max_recv_msg_size**=83886080
-  Maximum grpc receive message size. If not set or <= 0, then CRI-O will default to 80 * 1024 * 1024.
+  Maximum grpc receive message size. If not set or <= 0, then CRI-O will default to 80 *1024* 1024.
 
 ## CRIO.RUNTIME TABLE
+
 The `crio.runtime` table contains settings pertaining to the OCI runtime used and options for how to set up and manage the OCI runtime.
 
 **default_runtime**="runc"
@@ -145,13 +163,14 @@ the container runtime configuration.
   Path to the blockio class configuration file for configuring the cgroup blockio controller.
 
 **cdi_spec_dirs**=[]
-  Directories to scan for Container Device Interface Specifications to enable CDI device injection. For more details about CDI and the syntax of CDI Spec files please refer to https://github.com/container-orchestrated-devices/container-device-interface.
+  Directories to scan for Container Device Interface Specifications to enable CDI device injection. For more details about CDI and the syntax of CDI Spec files please refer to <https://github.com/container-orchestrated-devices/container-device-interface>.
 
   Directories later in the list have precedence over earlier ones. The default directory list is:
+
 ```
   cdi_spec_dirs = [
-	  "/etc/cdi",
-	  "/var/run/cdi",
+   "/etc/cdi",
+   "/var/run/cdi",
   ]
 ```
 
@@ -172,17 +191,18 @@ the container runtime configuration.
   List of default capabilities for containers. If it is empty or commented out, only the capabilities defined in the container json file by the user/kube will be added.
 
   The default list is:
+
 ```
   default_capabilities = [
-	  "CHOWN",
-	  "DAC_OVERRIDE",
-	  "FSETID",
-	  "FOWNER",
-	  "SETGID",
-	  "SETUID",
-	  "SETPCAP",
-	  "NET_BIND_SERVICE",
-	  "KILL",
+   "CHOWN",
+   "DAC_OVERRIDE",
+   "FSETID",
+   "FOWNER",
+   "SETGID",
+   "SETUID",
+   "SETPCAP",
+   "NET_BIND_SERVICE",
+   "KILL",
   ]
 ```
 
@@ -194,6 +214,7 @@ the container runtime configuration.
  List of default sysctls. If it is empty or commented out, only the sysctls defined in the container json file by the user/kube will be added.
 
   One example would be allowing ping inside of containers.  On systems that support `/proc/sys/net/ipv4/ping_group_range`, the default list could be:
+
 ```
   default_sysctls = [
        "net.ipv4.ping_group_range = 0   2147483647",
@@ -294,6 +315,7 @@ the container runtime configuration.
   Enable CRIU integration, requires that the criu binary is available in $PATH. (default: false)
 
 ### CRIO.RUNTIME.RUNTIMES TABLE
+
 The "crio.runtime.runtimes" table defines a list of OCI compatible runtimes.  The runtime to use is picked based on the runtime handler provided by the CRI.  If no runtime handler is provided, the runtime will be picked based on the level of trust of the workload. This option supports live configuration reload. This option supports live configuration reload.
 
 **runtime_path**=""
@@ -322,6 +344,7 @@ The "crio.runtime.runtimes" table defines a list of OCI compatible runtimes.  Th
   "io.containers.trace-syscall" for tracing syscalls via the OCI seccomp BPF hook.
 
 ### CRIO.RUNTIME.WORKLOADS TABLE
+
 The "crio.runtime.workloads" table defines a list of workloads - a way to customize the behavior of a pod and container.
 A workload is chosen for a pod based on whether the workload's **activation_annotation** is an annotation on the pod.
 
@@ -342,7 +365,7 @@ A workload is chosen for a pod based on whether the workload's **activation_anno
   "io.containers.trace-syscall" for tracing syscalls via the OCI seccomp BPF hook.
   "io.kubernetes.cri-o.seccompNotifierAction" for enabling the seccomp notifier feature.
 
-#### Using the seccomp notifier feature:
+#### Using the seccomp notifier feature
 
 This feature can help you to debug seccomp related issues, for example if
 blocked syscalls (permission denied errors) have negative impact on the
@@ -370,6 +393,7 @@ Please be aware that CRI-O is not able to get notified if a syscall gets blocked
 based on the seccomp defaultAction, which is a general runtime limitation.
 
 ### CRIO.RUNTIME.WORKLOAD.RESOURCES TABLE
+
 The resources table is a structure for overriding certain resources for pods using this workload.
 This structure provides a default value, and can be overridden by using the AnnotationPrefix.
 
@@ -380,6 +404,7 @@ Specifies the number of CPU shares this pod has access to.
 Specifies the cpuset this pod has access to.
 
 ## CRIO.IMAGE TABLE
+
 The `crio.image` table contains settings pertaining to the management of OCI images.
 
 CRI-O reads its configured registries defaults from the system wide containers-registries.conf(5) located in /etc/containers/registries.conf. If you want to modify just CRI-O, you can change the registries configuration in this file. Otherwise, leave `insecure_registries` and `registries` commented out to use the system's defaults from /etc/containers/registries.conf.
@@ -418,6 +443,7 @@ CRI-O reads its configured registries defaults from the system wide containers-r
   [EXPERIMENTAL] If its value is set, then images are pulled into the specified cgroup.  If its value is set to "pod", then the pod's cgroup is used.  It is currently supported only with the systemd cgroup manager.
 
 ## CRIO.NETWORK TABLE
+
 The `crio.network` table containers settings pertaining to the management of CNI plugins.
 
 **cni_default_network**=""
@@ -430,6 +456,7 @@ The `crio.network` table containers settings pertaining to the management of CNI
   List of paths to directories where CNI plugin binaries are located.
 
 ## CRIO.METRICS TABLE
+
 The `crio.metrics` table containers settings pertaining to the Prometheus based metrics retrieval.
 
 **enable_metrics**=false
@@ -451,6 +478,7 @@ The `crio.metrics` table containers settings pertaining to the Prometheus based 
   The certificate key for the secure metrics server.
 
 ## CRIO.TRACING TABLE
+
 [EXPERIMENTAL] The `crio.tracing` table containers settings pertaining to the export of OpenTelemetry trace data.
 
 **enable_tracing**=false
@@ -463,15 +491,18 @@ The `crio.metrics` table containers settings pertaining to the Prometheus based 
   Number of samples to collect per million OpenTelemetry spans. Set to 1000000 to always sample.
 
 ## CRIO.STATS TABLE
+
 The `crio.stats` table specifies all necessary configuration for reporting container and pod stats.
 
 **stats_collection_period**=0
   The number of seconds between collecting pod and container stats. If set to 0, the stats are collected on-demand instead.
 
 # SEE ALSO
+
 crio.conf.d(5), containers-storage.conf(5), containers-policy.json(5), containers-registries.conf(5), crio(8)
 
 # HISTORY
+
 Aug 2018, Update to the latest state by Valentin Rothberg <vrothberg@suse.com>
 
 Oct 2016, Originally compiled by Aleksa Sarai <asarai@suse.de>
