@@ -124,6 +124,27 @@ function teardown() {
 	[ "$banned_cpus_for_conf" == "$banned_cpus" ]
 }
 
+@test "irqbalance cpu ban list restore - default empty" {
+	# given
+	if ! grep -Eq '^[1,3,7,f]{1,}$' /proc/irq/default_smp_affinity; then
+		skip "requires default IRQ smp affinity (not banned CPUs)"
+	fi
+	[ -f "$CONFIGLET" ] && rm -f "$CONFIGLET"
+
+	local banned_cpus_for_conf
+	banned_cpus_for_conf=$(cat /proc/irq/default_smp_affinity)
+	echo "$banned_cpus_for_conf" > "$BANNEDCPUS_CONF"
+
+	# when
+	OVERRIDE_OPTIONS="--irqbalance-config-file ${IRQBALANCE_CONF}" start_crio
+
+	# then
+	local banned_cpus
+	banned_cpus=$(sed -n 's/^IRQBALANCE_BANNED_CPUS=\"\?\([^\"]*\)\"\?/\1/p' "$IRQBALANCE_CONF")
+
+	[ "$banned_cpus_for_conf" == "$banned_cpus" ]
+}
+
 # disable restore file, check it does NOT clear the irqbalance config
 @test "irqbalance cpu ban list restore - disable and file missing" {
 	# given
