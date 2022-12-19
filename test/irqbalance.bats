@@ -142,7 +142,46 @@ function teardown() {
 	local banned_cpus
 	banned_cpus=$(sed -n 's/^IRQBALANCE_BANNED_CPUS=\"\?\([^\"]*\)\"\?/\1/p' "$IRQBALANCE_CONF")
 
-	[ "$banned_cpus_for_conf" == "$banned_cpus" ]
+	echo "jlom: banned_cpus_for_conf:${banned_cpus_for_conf}"
+	echo "jlom: banned_cpus:${banned_cpus}"
+
+	if [ "$banned_cpus_for_conf" == "$banned_cpus" ]; then
+		echo "OK"
+	else
+		echo "NOK"
+	fi
+	return 255
+}
+
+@test "irqbalance cpu ban list restore - default no-file" {
+	# given
+	if ! grep -Eq '^[1,3,7,f]{1,}$' /proc/irq/default_smp_affinity; then
+		skip "requires default IRQ smp affinity (not banned CPUs)"
+	fi
+	[ -f "$CONFIGLET" ] && rm -f "$CONFIGLET"
+
+	rm -f "$IRQBALANCE_CONF"
+
+	local banned_cpus_for_conf
+	banned_cpus_for_conf=$(cat /proc/irq/default_smp_affinity)
+	echo "$banned_cpus_for_conf" > "$BANNEDCPUS_CONF"
+
+	# when
+	OVERRIDE_OPTIONS="--irqbalance-config-file ${IRQBALANCE_CONF}" start_crio
+
+	# then
+	local banned_cpus
+	banned_cpus=$(sed -n 's/^IRQBALANCE_BANNED_CPUS=\"\?\([^\"]*\)\"\?/\1/p' "$IRQBALANCE_CONF")
+
+	echo "jlom: banned_cpus_for_conf:${banned_cpus_for_conf}"
+	echo "jlom: banned_cpus:${banned_cpus}"
+
+	if [ "$banned_cpus_for_conf" == "$banned_cpus" ]; then
+		echo "OK"
+	else
+		echo "NOK"
+	fi
+	return 255
 }
 
 # disable restore file, check it does NOT clear the irqbalance config
