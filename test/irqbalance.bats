@@ -131,6 +131,8 @@ function teardown() {
 	fi
 	[ -f "$CONFIGLET" ] && rm -f "$CONFIGLET"
 
+	echo -n "" > "$IRQBALANCE_CONF"
+
 	local banned_cpus_for_conf
 	banned_cpus_for_conf=$(cat /proc/irq/default_smp_affinity)
 	echo "$banned_cpus_for_conf" > "$BANNEDCPUS_CONF"
