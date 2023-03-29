@@ -107,7 +107,14 @@ function teardown() {
 	local banned_cpus
 	banned_cpus=$(cat "$BANNEDCPUS_CONF")
 
-	[ "$expected_banned_cpus" == "$banned_cpus" ]
+	if [ "$expected_banned_cpus" == "$banned_cpus" ]; then
+		echo "jlom result OK"
+	else
+		echo "jlom result NOK"
+		echo "expected_banned_cpus: '${expected_banned_cpus}'"
+		echo "banned_cpus: '${banned_cpus}'"
+	fi
+	return 1
 }
 
 # given
@@ -139,7 +146,14 @@ function teardown() {
 	local banned_cpus
 	banned_cpus=$(sed -n 's/^IRQBALANCE_BANNED_CPUS=\"\?\([^\"]*\)\"\?/\1/p' "$IRQBALANCE_CONF")
 
-	[ "$banned_cpus_for_conf" == "$banned_cpus" ]
+	if [ "$banned_cpus_for_conf" == "$banned_cpus" ]; then
+		echo "jlom result OK"
+	else
+		echo "jlom result NOK"
+		echo "banned_cpus_for_conf: '${banned_cpus_for_conf}'"
+		echo "banned_cpus: '${banned_cpus}'"
+	fi
+	return 1
 }
 
 # restore option disabled. Check it does not disturb previous behaviour.
@@ -171,7 +185,14 @@ function teardown() {
 	local banned_cpus
 	banned_cpus=$(sed -n 's/^IRQBALANCE_BANNED_CPUS=\"\?\([^\"]*\)\"\?/\1/p' "$IRQBALANCE_CONF")
 
-	[ "$expected_banned_cpus" == "$banned_cpus" ] && [ ! -f "$BANNEDCPUS_CONF" ]
+	if [ "$expected_banned_cpus" == "$banned_cpus" ] && [ ! -f "$BANNEDCPUS_CONF" ]; then
+		echo "jlom result OK"
+	else
+		echo "jlom result NOK"
+		echo "expected_banned_cpus: '${expected_banned_cpus}'"
+		echo "banned_cpus: '${banned_cpus}'"
+	fi
+	return 1
 }
 
 # restore option disabled. Check it does not disturb previous behaviour.
@@ -206,7 +227,14 @@ function teardown() {
 	local banned_cpus
 	banned_cpus=$(sed -n 's/^IRQBALANCE_BANNED_CPUS=\"\?\([^\"]*\)\"\?/\1/p' "$IRQBALANCE_CONF")
 
-	[ "$expected_banned_cpus" == "$banned_cpus" ]
+	if [ "$expected_banned_cpus" == "$banned_cpus" ]; then
+		echo "jlom result OK"
+	else
+		echo "jlom result NOK"
+		echo "expected_banned_cpus: '${expected_banned_cpus}'"
+		echo "banned_cpus: '${banned_cpus}'"
+	fi
+	return 1
 }
 
 # explicit restore file. Check it uses it instead of any other file.
@@ -246,5 +274,18 @@ function teardown() {
 
 	# when a explicit file is used to restore default one is completely ignored,
 	# and so, it should not be created.( as it did not existed before)
-	[ "$banned_cpus_for_restore" == "$banned_cpus" ] && [ ! -f "$BANNEDCPUS_CONF" ]
+	if [ "$banned_cpus_for_restore" == "$banned_cpus" ]; then
+		if [ ! -f "$BANNEDCPUS_CONF" ]; then
+			echo "jlom result OK"
+		else
+			echo "jlom result NOK: file not found BANNEDCPUS_CONF: '${BANNEDCPUS_CONF}"
+			echo "banned_cpus_for_restore: '${banned_cpus_for_restore}'"
+			echo "banned_cpus: '${banned_cpus}'"
+		fi
+	else
+		echo "jlom result NOK"
+		echo "banned_cpus_for_restore: '${banned_cpus_for_restore}'"
+		echo "banned_cpus: '${banned_cpus}'"
+	fi
+	return 1
 }
