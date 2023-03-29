@@ -598,6 +598,7 @@ func doSetCPUFreqGovernor(c *oci.Container, governor, cpuDir, cpuSaveDir string)
 
 // RestoreIrqBalanceConfig restores irqbalance service with original banned cpu mask settings
 func RestoreIrqBalanceConfig(ctx context.Context, irqBalanceConfigFile, irqBannedCPUConfigFile, irqSmpAffinityProcFile string) error {
+	log.Infof(ctx, "jlom  RestoreIrqBalanceConfig Enter")
 	content, err := os.ReadFile(irqSmpAffinityProcFile)
 	if err != nil {
 		return err
@@ -657,5 +658,6 @@ func RestoreIrqBalanceConfig(ctx context.Context, irqBalanceConfigFile, irqBanne
 			log.Warnf(ctx, "Irqbalance service restart failed: %v", err)
 		}
 	}
+	log.Infof(ctx, "jlom  RestoreIrqBalanceConfig Exit OK")
 	return nil
 }

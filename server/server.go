@@ -420,8 +420,12 @@ func New(
 		return nil, err
 	}
 
+	log.Infof(ctx, "jlom Checking to restore irqbalance config from %s", config.IrqBalanceConfigRestoreFile)
 	if strings.ToLower(strings.TrimSpace(config.IrqBalanceConfigRestoreFile)) != irqBalanceConfigRestoreDisable {
+		log.Infof(ctx, "jlom  irqbalance config file %s", config.IrqBalanceConfigFile)
 		log.Infof(ctx, "Attempting to restore irqbalance config from %s", config.IrqBalanceConfigRestoreFile)
+		log.Infof(ctx, "jlom  irq SMP affinityfile %s", runtimehandlerhooks.IrqSmpAffinityProcFile)
+
 		err = runtimehandlerhooks.RestoreIrqBalanceConfig(context.TODO(), config.IrqBalanceConfigFile, config.IrqBalanceConfigRestoreFile, runtimehandlerhooks.IrqSmpAffinityProcFile)
 		if err != nil {
 			return nil, err
