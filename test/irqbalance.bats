@@ -53,6 +53,9 @@ function setup() {
 		touch "$BANNEDCPUS_CONF"
 		touch /tmp/.test_owns_bannedcpus_conf
 	fi
+	if [ -f "$CONFIGLET" ]; then
+		cp -v "$CONFIGLET" "$CONFIGLET".bkp
+	fi
 }
 
 function teardown() {
@@ -71,6 +74,9 @@ function teardown() {
 	elif [ -f /tmp/.test_owns_bannedcpus_conf ]; then
 		rm -f "$BANNEDCPUS_CONF"
 		rm -f /tmp/.test_owns_bannedcpus_conf
+	fi
+	if [ -f "$CONFIGLET".bck ]; then
+		cp -v "$CONFIGLET.bck" "$CONFIGLET"
 	fi
 }
 
