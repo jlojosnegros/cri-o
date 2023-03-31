@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # vim: set syntax=sh:
 
-load helpers
+load ../helpers
 
 function detect_irqbalance_config() {
 	# debian/ubuntu
