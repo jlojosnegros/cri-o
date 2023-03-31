@@ -22,19 +22,18 @@ fi
 . helpers.bash
 
 # Tests to run. Default is "." (i.e. the current directory).
-TESTS_ROOT=("${@:-.}")
-SERIAL_TESTS=("${TESTS_ROOT}/serial")
+TESTS=("${@:-.}")
 
-# The number of parallel jobs to execute
-export JOBS=${JOBS:-$(($(nproc --all) * 4))}
+ret=0
+for test in ${TESTS}; do
+    if [[ -d ${test} && -f ${test}/.should_be_serial ]]; then
+        JOBS=1
+    else
+        JOBS=$(($(nproc --all) * 4))
+        echo "JOBS: ${JOBS}"
+    fi
+    bats --jobs "$JOBS" --tap "${test}"
+    ret=$(($ret || $?))
+done
 
-# Run the tests.
-bats --jobs "$JOBS" --tap "${TESTS_ROOT[@]}"
-parallel_test_result=$?
-bats --tap "${SERIAL_TESTS[@]}"
-serial_test_result=$?
-
-echo "parallel: ${parallel_test_result}"
-echo "serial: ${serial_test_result}"
-
-[ parallel_test_result && serial_test_result ]
+return $ret
